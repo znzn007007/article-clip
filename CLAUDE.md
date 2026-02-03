@@ -1,0 +1,328 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Development Commands
+
+```bash
+# Build TypeScript to dist/
+npm run build
+
+# Watch mode for development
+npm run dev
+
+# Run tests
+npm test
+
+# Run the CLI (after building)
+npm run build
+node dist/cli/index.js once "https://x.com/user/status/123"
+
+# Batch processing with deduplication
+npm run build
+node dist/cli/index.js --file urls.txt
+
+# Force override (re-archive existing content)
+npm run build
+node dist/cli/index.js once "https://x.com/user/status/123" --force
+
+# Verbose mode (show detailed deduplication info)
+npm run build
+node dist/cli/index.js once "https://x.com/user/status/123" --verbose
+
+# Install Playwright browsers (optional fallback)
+node dist/cli/index.js install-browsers
+
+# Specify browser
+npm run build
+node dist/cli/index.js once "https://x.com/user/status/123" --browser chrome
+node dist/cli/index.js once "https://x.com/user/status/123" --browser edge
+```
+
+## Development Guidelines
+
+### Test-Driven Development (TDD)
+
+**CRITICAL**: All feature development MUST follow TDD:
+
+1. **Write tests first** - Create test cases before implementing functionality
+2. **Run tests to verify failure** - Tests should fail initially (red)
+3. **Implement minimal code** - Write just enough code to pass tests
+4. **Run tests to verify success** - Tests should pass (green)
+5. **Refactor** - Clean up code while keeping tests green
+
+**Test file locations:**
+- Place tests next to source files: `src/path/to/file.ts` → `src/path/to/__tests__/file.test.ts`
+- Or co-located: `src/path/to/file.test.ts`
+
+**Example workflow:**
+```bash
+# 1. Create test file first
+touch src/core/extract/adapters/wechat/__tests__/index.test.ts
+
+# 2. Write test cases (describe expected behavior)
+# 3. Run tests (expect failures)
+npm test -- wechat
+
+# 4. Implement adapter code
+# 5. Run tests again (expect success)
+npm test
+
+# 6. Refactor if needed
+```
+
+### Testing Best Practices (2026-02-03)
+
+**Important Test Patterns:**
+
+1. **DOM Mocking for `page.evaluate()` Tests**
+   - When mocking `document` for DOM extraction tests, you must mock BOTH `querySelector` AND `querySelectorAll`
+   - Example in `src/core/extract/adapters/twitter/__tests__/dom-extractor.test.ts`:
+   ```typescript
+   const primaryColumnEl = makeElement({ queryAllMap: { ... } });
+   (globalThis as any).document = {
+     querySelector: (selector: string) =>
+       selector === 'div[data-testid="primaryColumn"]' ? primaryColumnEl : null,
+     querySelectorAll: (selector: string) => [...],
+   };
+   ```
+
+2. **Twitter Thread Extraction Tests**
+   - Tests should NOT expect scroll-to-top behavior (removed 2026-02-02)
+   - PageRenderer.handleTwitter stops scrolling at peak tweet count to prevent Twitter from unloading tweets
+   - Update test expectations: evaluate call count = scroll count (NOT scroll + 1)
+
+3. **HTML-to-Blocks Tests Without PrimaryColumn**
+   - Tests may use simplified HTML without `div[data-testid="primaryColumn"]` wrapper
+   - `TwitterHtmlToBlocks.convert()` has fallback logic: tries primaryColumn first, then direct article selection
+   - This allows tests to be simpler while production code handles real Twitter structure
+
+4. **Browser Launch Tests Need Higher Timeout**
+   - Tests that actually launch browsers (like `BrowserSelector.isAvailable()`) need 30s timeout
+   - These are integration tests, not pure unit tests - they spawn real browser processes
+
+## Architecture Overview
+
+The codebase follows a **pipeline architecture** with five main layers:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        CLI Layer                             │
+│  (src/cli/) - Commands: once, batch, install-browsers       │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Orchestrator Layer                         │
+│  (src/core/orchestrator.ts) - ClipOrchestrator              │
+│  Coordinates: dedupe → browser → render → extract → export   │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+        ┌──────────────────┴──────────────────┐
+        ▼                                     ▼
+┌─────────────────────┐            ┌──────────────────────┐
+│   Render Layer       │            │   Extract Layer      │
+│  (src/core/render/)  │            │ (src/core/extract/)  │
+│                      │            │                      │
+│ • BrowserManager     │            │ • AdapterRegistry    │
+│ • PageRenderer       │            │ • BaseAdapter        │
+│   - Playwright       │            │ • TwitterAdapter     │
+│   - waitUntil:'load' │            │ • ZhihuAdapter       │
+│                      │            │ • WeChatAdapter      │
+│   - 3s delay for SPA │            │                      │
+└─────────────────────┘            │ • Multi-source        │
+                                     │   extraction:       │
+                                     │   - window.__STATE__│
+                                     │   - DOM selectors  │
+                                     │   - cheerio HTML   │
+                                     └──────────────────────┘
+                                               │
+                                               ▼
+                                    ┌──────────────────────┐
+                                    │    Export Layer      │
+                                    │ (src/core/export/)   │
+                                    │                      │
+                                    │ • MarkdownGenerator  │
+                                    │ • AssetDownloader    │
+                                    │ • PathGenerator      │
+                                    └──────────────────────┘
+                                               │
+                                               ▼
+                                    ┌──────────────────────┐
+                                    │   Dedupe Layer       │
+                                    │ (src/core/dedupe/)   │
+                                    │                      │
+                                    │ • DedupeManager      │
+                                    │ • Strategy functions │
+                                    │ • Archive database   │
+                                    └──────────────────────┘
+```
+
+## Key Data Flow
+
+1. **URL → Dedupe Check (Level 1)**: `DedupeManager` checks if URL already archived (before browser launch)
+2. **URL → RenderedPage**: `PageRenderer` uses Playwright to load page, waits for content, extracts raw data and HTML
+3. **RenderedPage → ClipDoc**: `Adapter` (Twitter/Zhihu/WeChat) parses content into structured blocks
+4. **ClipDoc → Dedupe Check (Level 2)**: `DedupeManager` checks by canonical URL (after extraction)
+5. **ClipDoc → Markdown/JSON**: Exporters generate final output files
+6. **Success → Archive Record**: `DedupeManager` adds record to `.archived.json`
+
+## Critical Implementation Details
+
+### Twitter Adapter Multi-Source Extraction
+
+Twitter/X uses heavily JS-driven rendering. The adapter tries extraction in priority order:
+
+1. `page.rawData` (from `TwitterRawExtractor`) - searches `window.__STATE__`, `__INITIAL_STATE__`, script tags
+2. `TwitterDomExtractor` - uses `page.evaluate()` to extract from DOM
+3. Cheerio HTML parsing as final fallback
+
+**Important**: Twitter long-form tweets may not have `[data-testid="tweetText"]`. The DOM extractor has fallback methods for `longformRichTextComponent`.
+
+### Page Rendering Strategy
+
+`src/core/render/page.ts`:
+- Uses `waitUntil: 'load'` (not `commit` or `networkidle`)
+- Adds 3 second fixed delay for SPA content
+- Waits for `article, main, [role="main"]` selector with 10s timeout
+- Twitter-specific: scrolls to load thread content
+
+### Browser Strategy
+
+Supports multiple browsers with auto-detection:
+
+**Browsers supported:**
+- Google Chrome (`--browser chrome`)
+- Microsoft Edge (`--browser edge`)
+- Auto detection (`--browser auto` or default)
+
+**Auto priority:** Edge → Chrome (fallback)
+
+**Session directories:**
+- Windows: `%LOCALAPPDATA%\\article-clip\\session-chrome` / `%LOCALAPPDATA%\\article-clip\\session-edge`
+- macOS: `~/Library/Application Support/article-clip/session-chrome` / `~/Library/Application Support/article-clip/session-edge`
+- Linux: `$XDG_DATA_HOME/article-clip/session-chrome` / `$XDG_DATA_HOME/article-clip/session-edge` (fallback: `~/.local/share/article-clip/...`)
+
+### Deduplication Strategy
+
+The deduplication system uses **two-level checking** to efficiently avoid re-archiving content:
+
+**Level 1 Check** (pre-render):
+- Uses normalized URL (hash removed)
+- Fast check that avoids expensive browser operations
+- Performed in `ClipOrchestrator.archive()` before launching browser
+
+**Level 2 Check** (post-extraction):
+- Uses `canonicalUrl` when available (more accurate)
+- Catches duplicates with different URLs pointing to same content
+- Performed after adapter extracts the document
+
+**Dedupe Key Priority:**
+```typescript
+// In src/core/dedupe/strategy.ts
+getDedupeKey(doc): string {
+  return doc.canonicalUrl || normalizeUrl(doc.sourceUrl);
+}
+```
+
+**Storage Location:**
+- File: `<output-dir>/.archived.json`
+- Format: JSON with versioning support
+- Tracks: firstSeen, lastUpdated, path, platform
+
+**CLI Options:**
+- `--force`: Override existing archive (deletes old record, creates new one)
+- `--verbose`: Show detailed deduplication information during processing
+
+### Adapter Pattern
+
+All adapters extend `BaseAdapter`:
+- `canHandle(url)`: checks if URL matches adapter's domains
+- `extract(page)`: returns `ExtractResult` with `doc` and `warnings`
+- `cleanText(text)`: utility for text normalization
+
+### Type System
+
+Core types in `src/core/types/index.ts`:
+- `ClipDoc`: unified document format
+- `Block`: union type for all content blocks (paragraph, heading, image, link, video, tweet_meta, hashtag, etc.)
+- Each adapter produces `ClipDoc` → exporter consumes it
+
+### Error Handling
+
+- `ClipError` with `ErrorCode` enum in `src/core/errors.ts`
+- Platform-specific errors extend base (e.g., `TwitterExtractError`, `ZhihuExtractError`)
+- Errors include retryable flag and user-facing suggestions
+
+## Known Issues
+
+1. ~~Asset downloading not implemented~~ - ✅ Completed (2026-01-18)
+2. ~~Twitter thread extraction incomplete~~ - ✅ Fixed (2026-02-02) - Now properly extracts full threads using virtual scrolling aware strategy
+3. **Zhihu parseFromRawState** is stub (returns null)
+4. **CDP connection** option exists but not fully implemented in `BrowserManager`
+
+## Platform-Specific Notes
+
+### Twitter/X
+- Domains: `x.com`, `twitter.com`
+- Auth detection: checks for `auth_token` cookie
+- Long-form tweets use different DOM structure
+- Output includes tweet metadata (likes, retweets, replies, views)
+
+**CRITICAL: Twitter Thread Extraction**
+Twitter uses virtual scrolling that unloads invisible tweets. When extracting threads:
+
+1. **Extract original author from URL** - Use URL pattern `/username/status/` to get the author, NOT from first tweet (which may be a reply)
+2. **Filter by original author** - Only save tweets from the original author to exclude reply section
+3. **Use small scroll steps** - Scroll by 50% of viewport height (`window.scrollBy(0, window.innerHeight * 0.5)`) NOT to bottom
+4. **Stop at first sign of decrease** - When author tweet count decreases (even by 1), stop immediately - this is the peak before entering reply section
+5. **Stop on low growth** - When growth is <=1 tweet for 2 consecutive scrolls, stop - indicates end of thread
+6. **DON'T scroll back to top** - Stay at current position for DOM extraction; scrolling back causes Twitter to unload tweets
+7. **Count only original author's tweets** - When checking scroll progress, only count tweets matching original author, NOT all tweets on page
+
+**Common mistake:** Scrolling to bottom loads reply section, then scrolling back to top unloads thread content. Result: incomplete thread extraction.
+
+**Correct flow:**
+- Scroll in small steps (50% viewport)
+- Count only original author's tweets
+- Stop when count decreases OR growth is low for 2 scrolls
+- Extract DOM immediately at current position
+- Filter by original author during final processing
+
+**Why this works:** 50% scroll steps minimize Twitter's tweet unloading. Stopping at the first decrease captures the peak before unloading begins.
+
+**Debugging Journey (2026-02-02):**
+- **Initial Problem:** Only 4-8 tweets extracted from 10+ tweet threads
+- **Root Cause Discovery:** Twitter's virtual scrolling unloads tweets outside viewport
+- **Failed Attempts:**
+  - Fixed threshold (>=8 tweets) - ❌ Missed tweets in longer threads
+  - Scrolling to bottom then back to top - ❌ Twitter unloaded tweets during scroll back
+  - 80% scroll steps - ❌ Too aggressive, still triggered unloading
+- **Solution:** 50% scroll steps + dual stop conditions (decrease OR low growth)
+- **Key Insight:** Stop BEFORE entering reply section, not after. First decrease = peak.
+
+### Zhihu
+- Domains: `zhihu.com`
+- Anti-bot: error code 40362 ("您当前请求存在异常，暂时限制本次访问")
+- Supports answer pages and article pages
+
+### WeChat Official Account
+- Domains: `mp.weixin.qq.com`
+- Primary selectors: `.rich_media_title`, `#js_content`, `.rich_media_meta_text`
+- Author preference: `#js_name` / `.profile_nickname` → script `nickname` → meta author
+- `published_at` parsed when available; otherwise omitted
+
+## Documentation Guidelines
+
+### Daily Report Files
+
+**Location:** `docs/dailyReport/`
+
+**Naming Rule:** `YYYY-MM-DD-summary.md` (e.g., `2026-01-18-summary.md`)
+
+**Rules:**
+1. **Create a new file for each day** - Never append to or modify previous day's file
+2. **Never rename existing files** - Historical files must keep their original names
+3. **Date must match the actual work date** - Use the current date when creating
+
+**Purpose:** Maintain a chronological record of daily progress and issues.
