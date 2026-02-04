@@ -1,6 +1,12 @@
 # Article Clip
 
+[中文](README_zh.md) | English
+
 Local content archiver for Twitter/X, Zhihu, and WeChat Official Accounts. Save web articles as Markdown with images.
+
+## NPM
+
+[npm](https://www.npmjs.com/package/article-clip) | [GitHub](https://github.com/znzn007007/article-clip)
 
 ## Features
 

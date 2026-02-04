@@ -38,11 +38,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/znzn007007/clip.git"
+    "url": "git+https://github.com/znzn007007/article-clip.git"
   },
-  "homepage": "https://github.com/znzn007007/clip#readme",
+  "homepage": "https://github.com/znzn007007/article-clip#readme",
   "bugs": {
-    "url": "https://github.com/znzn007007/clip/issues"
+    "url": "https://github.com/znzn007007/article-clip/issues"
   },
   "dependencies": {
     "playwright": "^1.48.0",

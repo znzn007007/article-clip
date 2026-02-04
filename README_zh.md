@@ -1,6 +1,12 @@
 # Article Clip
 
+中文 | [English](README.md)
+
 本地内容归档工具，支持 Twitter/X、知乎、微信公众号。将网页文章保存为 Markdown 格式，自动下载图片。
+
+## NPM
+
+[npm](https://www.npmjs.com/package/article-clip) | [GitHub](https://github.com/znzn007007/article-clip)
 
 ## 特性
 
