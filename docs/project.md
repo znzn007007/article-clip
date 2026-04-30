@@ -1,9 +1,9 @@
 # Project Overview
 
 **Project:** Article Clip (CLI)
-**Version:** 0.1.0
-**Last Updated:** 2026-02-03
-**Status:** Active (~97% complete)
+**Version:** 0.1.1
+**Last Updated:** 2026-04-30
+**Status:** Active
 
 ## Purpose
 
@@ -64,22 +64,30 @@ Recent completed:
 - Twitter long-form and thread extraction improvements
 - Two-level dedupe system
 - Chrome/Edge multi-browser support
+- Zhihu raw state parsing for question/answer URLs
+- Zhihu placeholder/SVG image filtering
+- GitHub Release-based npm publishing through Trusted Publishing
 
 Pending tasks (top):
 - Configuration file support (`clip.config.json`, user config)
 - Queue command implementation
-- Zhihu raw state parsing and tests
 
 ## npm Publish Checklist
 
-Before publishing:
+Normal releases are published by GitHub Actions through npm Trusted Publishing. Do not publish from a local machine for routine releases, and do not add a long-lived `NPM_TOKEN` secret.
+
+Before release:
 - Verify repository URLs in `package.json`.
-- `npm login`
-- `npm run build`
-- `npm pack --dry-run`
-- `npm publish --access public`
+- Confirm npm Trusted Publisher is configured for:
+  - Provider: GitHub Actions
+  - Repository: `znzn007007/article-clip`
+  - Workflow file: `release.yml`
+- Run `npm run release:check`.
+- Merge the release PR to `main`.
+- Create a GitHub Release with a tag matching `package.json`, for example `v0.1.1`.
 
 Post publish:
+- Confirm the Release workflow completed successfully.
+- Confirm npm shows the expected version: `npm view article-clip version`.
 - Install check: `npm install -g article-clip` and `article-clip --help`
 - Add npm badge to README (optional)
-- Create GitHub release (optional)
