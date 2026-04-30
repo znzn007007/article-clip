@@ -11,6 +11,8 @@
     "dev": "tsc --watch",
     "test": "jest",
     "clip": "node dist/cli/index.js",
+    "verify": "npm run build && npm test -- --runInBand",
+    "release:check": "npm run verify && npm pack --dry-run",
     "prepack": "npm run build",
     "prepublishOnly": "npm test -- --runInBand"
   },

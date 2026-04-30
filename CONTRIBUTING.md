@@ -118,6 +118,20 @@ clips/
 - Use Conventional Commits: `feat(scope): ...`, `fix: ...`, `docs: ...`, `chore: ...`, `test: ...`.
 - PRs should include a short summary and the validation commands run.
 - If output changes, include a small example of the `clips/` layout or snippet.
+- Keep PRs focused on one shippable change. Bug fixes should include regression tests when practical.
+- Before requesting review, run `npm run verify`. Before publishing a release, run `npm run release:check`.
+
+### Maintainer Flow
+
+Use this fixed flow for normal open-source maintenance:
+
+1. Create a branch from `main` with a meaningful name, for example `fix/zhihu-title-placeholder-images`.
+2. Make the smallest complete change that solves the issue.
+3. Add or update tests beside the affected source files.
+4. Run `npm run verify`.
+5. Open a PR using the repository PR template and wait for CI.
+6. Squash or merge after review.
+7. For npm releases, follow `docs/release.md`; do not publish manually from an unreviewed local branch.
 
 ### Daily Reports
 

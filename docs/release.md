@@ -25,18 +25,19 @@ Do not store a long-lived `NPM_TOKEN` in GitHub secrets for normal releases.
 
    Use `minor` for new non-breaking features and `major` for breaking CLI or output changes.
 
-4. Run local verification:
+4. Run local release verification:
 
    ```bash
-   npm run build
-   npm test -- --runInBand
-   npm pack --dry-run
+   npm run release:check
    ```
 
 5. Commit the version bump and related changes.
 6. Push and create a GitHub Release for tag `vX.Y.Z`.
+7. Confirm the Release workflow publishes the matching npm version.
 
 Publishing is handled by `.github/workflows/release.yml` when the GitHub Release is published.
+
+The workflow refuses to publish when the GitHub Release tag does not match `package.json` exactly.
 
 ## Dist tags
 
