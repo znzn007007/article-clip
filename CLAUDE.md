@@ -41,6 +41,10 @@ node dist/cli/index.js once "https://x.com/user/status/123" --browser edge
 
 ## Development Guidelines
 
+### Documented Solutions
+
+`docs/solutions/` contains documented solutions to past problems and workflow decisions, organized by category with YAML frontmatter such as `module`, `tags`, and `problem_type`. It is relevant when implementing, debugging, or changing release/workflow behavior in already documented areas.
+
 ### Test-Driven Development (TDD)
 
 **CRITICAL**: All feature development MUST follow TDD:
@@ -258,7 +262,7 @@ Core types in `src/core/types/index.ts`:
 
 1. ~~Asset downloading not implemented~~ - ✅ Completed (2026-01-18)
 2. ~~Twitter thread extraction incomplete~~ - ✅ Fixed (2026-02-02) - Now properly extracts full threads using virtual scrolling aware strategy
-3. **Zhihu parseFromRawState** is stub (returns null)
+3. ~~Zhihu parseFromRawState is stub~~ - ✅ Fixed (2026-04-30) - Raw initial state parsing now selects the requested answer and preserves the question title
 4. **CDP connection** option exists but not fully implemented in `BrowserManager`
 
 ## Platform-Specific Notes

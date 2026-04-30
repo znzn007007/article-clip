@@ -50,9 +50,19 @@ Publishing is automated:
 1. Merge the release PR to `main`.
 2. Create a GitHub Release with tag `vX.Y.Z`.
 3. `.github/workflows/release.yml` verifies the tag matches `package.json`.
-4. The workflow publishes to npm through Trusted Publishing.
+4. The workflow uses Node.js 24.x and verifies npm `>=11.5.1`.
+5. The workflow publishes to npm through Trusted Publishing.
+6. Verify npm after the run:
+
+   ```bash
+   npm view article-clip version
+   npm view article-clip dist-tags --json
+   ```
 
 Do not publish from a local machine for normal releases.
+Do not self-upgrade npm inside the release job; use a Node.js version that already bundles a Trusted Publishing-capable npm.
+
+If publish reaches npm and fails with `E404` or a permission-style message, verify the npm Trusted Publisher entry for `znzn007007/article-clip` and workflow file `release.yml`.
 
 ## 5. Emergency rollback
 
