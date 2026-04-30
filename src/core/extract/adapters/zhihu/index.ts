@@ -20,7 +20,7 @@ export class ZhihuAdapter extends BaseAdapter {
     // Primary path: parse raw data
     if (page.rawData) {
       try {
-        const data = this.parser.parseFromRawState(JSON.parse(page.rawData));
+        const data = this.parser.parseFromRawState(JSON.parse(page.rawData), page.url);
         if (data) {
           return { doc: this.buildDoc(data, page), warnings: [] };
         }

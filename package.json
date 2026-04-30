@@ -1,6 +1,6 @@
 {
   "name": "article-clip",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local content archiver for Twitter/X, Zhihu, and WeChat Official Accounts",
   "bin": {
     "article-clip": "./dist/cli/index.js"
@@ -10,10 +10,17 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "jest",
-    "clip": "node dist/cli/index.js"
+    "clip": "node dist/cli/index.js",
+    "verify": "npm run build && npm test -- --runInBand",
+    "release:check": "npm run verify && npm pack --dry-run",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm test -- --runInBand"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.18.1"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist",

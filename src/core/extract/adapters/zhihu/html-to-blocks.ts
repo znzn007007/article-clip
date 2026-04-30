@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { AnyNode, Element, Text } from 'domhandler';
 import type { Block } from '../../../types/index.js';
+import { pickZhihuImageUrlFromElement } from './images.js';
 
 export class ZhihuHtmlToBlocks {
   /**
@@ -75,7 +76,7 @@ export class ZhihuHtmlToBlocks {
         break;
 
       case 'img':
-        const src = $(node).attr('src');
+        const src = pickZhihuImageUrlFromElement($, node);
         if (src) {
           blocks.push({ type: 'image', url: src, alt: $(node).attr('alt') || '' });
         }
