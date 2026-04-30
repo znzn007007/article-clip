@@ -49,4 +49,24 @@ describe('ZhihuHtmlToBlocks', () => {
       ])
     );
   });
+
+  it('skips svg placeholders and uses original Zhihu image attributes', () => {
+    const html = `
+      <p>Before</p>
+      <img src="data:image/svg+xml;base64,PHN2Zy8+" data-original="https://pic.zhimg.com/real_b.jpg" alt="real" />
+      <img src="https://static.zhihu.com/heifetz/assets/placeholder.svg" alt="placeholder" />
+      <img src="https://pic.zhimg.com/avatar.png" alt="avatar" />
+    `;
+
+    const converter = new ZhihuHtmlToBlocks();
+    const blocks = converter.convert(html);
+
+    expect(blocks).toEqual(
+      expect.arrayContaining([
+        { type: 'paragraph', content: 'Before' },
+        { type: 'image', url: 'https://pic.zhimg.com/real_r.jpg', alt: 'real' },
+      ])
+    );
+    expect(blocks.filter(block => block.type === 'image')).toHaveLength(1);
+  });
 });
