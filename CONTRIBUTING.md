@@ -4,7 +4,7 @@ Local content archiver for Twitter, Zhihu, and WeChat Official Accounts.
 
 ## Prerequisites
 
-- Node.js 18 or higher
+- Node.js 20.18.1 or higher
 
 ## Installation
 
